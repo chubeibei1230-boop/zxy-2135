@@ -1,6 +1,6 @@
 export type Role = 'admin' | 'executor' | 'supervisor'
 export type FieldTypeType = 'text' | 'number' | 'date' | 'select' | 'multiselect' | 'textarea'
-export type ApplicationStatus = 'pending' | 'approved' | 'rejected' | 'resubmitted'
+export type ApplicationStatus = 'pending' | 'approved' | 'rejected' | 'resubmitted' | 'withdrawn'
 
 export interface FieldType {
   id: string
@@ -29,6 +29,26 @@ export interface FieldConfig {
   created_at: string
 }
 
+export interface ProcessLog {
+  id: string
+  application_id: string
+  action: string
+  operator_id: string
+  operator_name: string
+  remark: string
+  created_at: string
+}
+
+export interface LatestAction {
+  id: string
+  application_id: string
+  action: string
+  operator_id: string
+  operator_name: string
+  remark: string
+  created_at: string
+}
+
 export interface Application {
   id: string
   application_type_id: string
@@ -43,6 +63,8 @@ export interface Application {
   reject_reason?: string
   created_at: string
   updated_at: string
+  process_logs?: ProcessLog[]
+  latest_action?: LatestAction
 }
 
 export interface SupplementNote {

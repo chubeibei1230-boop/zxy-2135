@@ -5,6 +5,7 @@ const statusMap: Record<ApplicationStatus, { label: string; className: string }>
   approved: { label: '已通过', className: 'bg-emerald-100 text-emerald-800' },
   rejected: { label: '已驳回', className: 'bg-red-100 text-red-800' },
   resubmitted: { label: '已重提', className: 'bg-blue-100 text-blue-800' },
+  withdrawn: { label: '已撤回', className: 'bg-gray-200 text-gray-600' },
 }
 
 interface Props {

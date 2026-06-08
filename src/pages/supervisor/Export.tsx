@@ -9,6 +9,7 @@ const statusOptions: { label: string; value: ApplicationStatus | '' }[] = [
   { label: '已通过', value: 'approved' },
   { label: '已驳回', value: 'rejected' },
   { label: '已重提', value: 'resubmitted' },
+  { label: '已撤回', value: 'withdrawn' },
 ]
 
 export default function Export() {

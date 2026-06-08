@@ -83,16 +83,24 @@ export async function getApplication(id: string) {
   return request<Application>(`/applications/${id}`)
 }
 
-export async function supplementApplication(id: string, content: string) {
+export async function supplementApplication(id: string, content: string, operatorId: string = '') {
   return request<{ id: string }>(`/applications/${id}/supplement`, {
     method: 'PUT',
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, operator_id: operatorId }),
   })
 }
 
-export async function resubmitApplication(id: string) {
+export async function resubmitApplication(id: string, applicantId: string = '') {
   return request<{ ok: boolean }>(`/applications/${id}/resubmit`, {
     method: 'PUT',
+    body: JSON.stringify({ applicant_id: applicantId }),
+  })
+}
+
+export async function withdrawApplication(id: string, applicantId: string, reason: string = '') {
+  return request<{ ok: boolean }>(`/applications/${id}/withdraw`, {
+    method: 'PUT',
+    body: JSON.stringify({ applicant_id: applicantId, reason }),
   })
 }
 

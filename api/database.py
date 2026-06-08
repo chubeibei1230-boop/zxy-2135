@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS applications (
     applicant_id TEXT NOT NULL,
     field_version INTEGER NOT NULL,
     field_values_json TEXT NOT NULL DEFAULT '{}',
-    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected', 'resubmitted')),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected', 'resubmitted', 'withdrawn')),
     reject_reason TEXT DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -77,11 +77,23 @@ CREATE TABLE IF NOT EXISTS approval_logs (
     id TEXT PRIMARY KEY,
     application_id TEXT NOT NULL,
     supervisor_id TEXT NOT NULL,
-    action TEXT NOT NULL CHECK(action IN ('approve', 'reject')),
+    action TEXT NOT NULL CHECK(action IN ('approve', 'reject', 'withdraw', 'supplement', 'resubmit', 'submit')),
     reason TEXT DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (application_id) REFERENCES applications(id),
     FOREIGN KEY (supervisor_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS application_logs (
+    id TEXT PRIMARY KEY,
+    application_id TEXT NOT NULL,
+    action TEXT NOT NULL CHECK(action IN ('submit', 'approve', 'reject', 'supplement', 'resubmit', 'withdraw')),
+    operator_id TEXT NOT NULL,
+    operator_name TEXT NOT NULL DEFAULT '',
+    remark TEXT DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (application_id) REFERENCES applications(id),
+    FOREIGN KEY (operator_id) REFERENCES users(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
@@ -90,6 +102,7 @@ CREATE INDEX IF NOT EXISTS idx_applications_type ON applications(application_typ
 CREATE INDEX IF NOT EXISTS idx_field_configs_type_version ON field_configs(application_type_id, version);
 CREATE INDEX IF NOT EXISTS idx_supplement_notes_application ON supplement_notes(application_id);
 CREATE INDEX IF NOT EXISTS idx_approval_logs_application ON approval_logs(application_id);
+CREATE INDEX IF NOT EXISTS idx_application_logs_application ON application_logs(application_id);
 """)
     cursor = await db.execute("SELECT COUNT(*) FROM users")
     row = await cursor.fetchone()

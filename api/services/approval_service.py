@@ -32,6 +32,7 @@ async def get_approvals(status=None):
         )
         fc_row = await cursor2.fetchone()
         snapshot = json.loads(fc_row["fields_json"]) if fc_row else []
+        latest = await _get_latest_action(row["id"])
         result.append({
             "id": row["id"],
             "application_type_id": row["application_type_id"],
@@ -45,6 +46,7 @@ async def get_approvals(status=None):
             "reject_reason": row["reject_reason"] or "",
             "created_at": row["created_at"],
             "updated_at": row["updated_at"],
+            "latest_action": latest,
         })
     return result
 
@@ -56,8 +58,15 @@ async def approve_application(app_id, supervisor_id):
         (app_id,),
     )
     row = await cursor.fetchone()
-    if not row or row["status"] not in ("pending", "resubmitted"):
-        return None
+    if not row:
+        return "not_found"
+    if row["status"] == "withdrawn":
+        return "withdrawn"
+    if row["status"] not in ("pending", "resubmitted"):
+        return "not_approvable"
+    cursor2 = await db.execute("SELECT name FROM users WHERE id = ?", (supervisor_id,))
+    user_row = await cursor2.fetchone()
+    supervisor_name = user_row["name"] if user_row else ""
     log_id = str(uuid4())
     await db.execute(
         "UPDATE applications SET status = 'approved', updated_at = datetime('now') WHERE id = ?",
@@ -67,8 +76,13 @@ async def approve_application(app_id, supervisor_id):
         "INSERT INTO approval_logs (id, application_id, supervisor_id, action) VALUES (?, ?, ?, 'approve')",
         (log_id, app_id, supervisor_id),
     )
+    app_log_id = str(uuid4())
+    await db.execute(
+        "INSERT INTO application_logs (id, application_id, action, operator_id, operator_name, remark) VALUES (?, ?, 'approve', ?, ?, '')",
+        (app_log_id, app_id, supervisor_id, supervisor_name),
+    )
     await db.commit()
-    return True
+    return "ok"
 
 
 async def reject_application(app_id, supervisor_id, reason):
@@ -78,8 +92,15 @@ async def reject_application(app_id, supervisor_id, reason):
         (app_id,),
     )
     row = await cursor.fetchone()
-    if not row or row["status"] not in ("pending", "resubmitted"):
-        return None
+    if not row:
+        return "not_found"
+    if row["status"] == "withdrawn":
+        return "withdrawn"
+    if row["status"] not in ("pending", "resubmitted"):
+        return "not_rejectable"
+    cursor2 = await db.execute("SELECT name FROM users WHERE id = ?", (supervisor_id,))
+    user_row = await cursor2.fetchone()
+    supervisor_name = user_row["name"] if user_row else ""
     log_id = str(uuid4())
     await db.execute(
         "UPDATE applications SET status = 'rejected', reject_reason = ?, updated_at = datetime('now') WHERE id = ?",
@@ -89,5 +110,30 @@ async def reject_application(app_id, supervisor_id, reason):
         "INSERT INTO approval_logs (id, application_id, supervisor_id, action, reason) VALUES (?, ?, ?, 'reject', ?)",
         (log_id, app_id, supervisor_id, reason),
     )
+    app_log_id = str(uuid4())
+    await db.execute(
+        "INSERT INTO application_logs (id, application_id, action, operator_id, operator_name, remark) VALUES (?, ?, 'reject', ?, ?, ?)",
+        (app_log_id, app_id, supervisor_id, supervisor_name, reason),
+    )
     await db.commit()
-    return True
+    return "ok"
+
+
+async def _get_latest_action(app_id):
+    db = await get_db()
+    cursor = await db.execute(
+        "SELECT id, application_id, action, operator_id, operator_name, remark, created_at FROM application_logs WHERE application_id = ? ORDER BY created_at DESC LIMIT 1",
+        (app_id,),
+    )
+    row = await cursor.fetchone()
+    if not row:
+        return None
+    return {
+        "id": row["id"],
+        "application_id": row["application_id"],
+        "action": row["action"],
+        "operator_id": row["operator_id"],
+        "operator_name": row["operator_name"],
+        "remark": row["remark"] or "",
+        "created_at": row["created_at"],
+    }

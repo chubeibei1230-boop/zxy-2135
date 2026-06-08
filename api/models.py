@@ -67,6 +67,8 @@ class ApplicationResponse(BaseModel):
     created_at: str
     updated_at: str
     supplement_notes: Optional[List[Dict[str, Any]]] = None
+    process_logs: Optional[List[Dict[str, Any]]] = None
+    latest_action: Optional[Dict[str, Any]] = None
 
 
 class ApplicationListItem(BaseModel):
@@ -82,10 +84,12 @@ class ApplicationListItem(BaseModel):
     reject_reason: str
     created_at: str
     updated_at: str
+    latest_action: Optional[Dict[str, Any]] = None
 
 
 class SupplementRequest(BaseModel):
     content: str
+    operator_id: str = ""
 
 
 class ApproveRequest(BaseModel):
@@ -104,4 +108,19 @@ class ApprovalLogItem(BaseModel):
     supervisor_name: str
     action: str
     reason: str
+    created_at: str
+
+
+class WithdrawRequest(BaseModel):
+    applicant_id: str
+    reason: str = ""
+
+
+class ApplicationLogItem(BaseModel):
+    id: str
+    application_id: str
+    action: str
+    operator_id: str
+    operator_name: str
+    remark: str
     created_at: str

@@ -4,6 +4,23 @@ import io
 from api.database import get_db
 
 
+async def _get_latest_action(app_id):
+    db = await get_db()
+    cursor = await db.execute(
+        "SELECT action, operator_name, remark, created_at FROM application_logs WHERE application_id = ? ORDER BY created_at DESC LIMIT 1",
+        (app_id,),
+    )
+    row = await cursor.fetchone()
+    if not row:
+        return None
+    return {
+        "action": row["action"],
+        "operator_name": row["operator_name"],
+        "remark": row["remark"] or "",
+        "created_at": row["created_at"],
+    }
+
+
 async def export_csv(application_type_id=None, status=None, start_date=None, end_date=None):
     db = await get_db()
     query = """
@@ -48,6 +65,8 @@ async def export_csv(application_type_id=None, status=None, start_date=None, end
             if f["name"] not in all_field_names_ordered:
                 all_field_names_ordered.append(f["name"])
 
+        latest = await _get_latest_action(row["id"])
+
         rows_data.append({
             "id": row["id"],
             "applicant_name": row["applicant_name"],
@@ -56,10 +75,11 @@ async def export_csv(application_type_id=None, status=None, start_date=None, end
             "created_at": row["created_at"],
             "snapshot": snapshot,
             "field_values": field_values,
+            "latest_action": latest,
         })
 
     output = io.StringIO()
-    base_headers = ["申请编号", "申请人", "申请类型", "状态", "创建时间"]
+    base_headers = ["申请编号", "申请人", "申请类型", "状态", "创建时间", "最近操作", "最近操作人", "最近操作说明"]
     headers = base_headers + all_field_names_ordered
     writer = csv.DictWriter(output, fieldnames=headers)
     writer.writeheader()
@@ -69,15 +89,29 @@ async def export_csv(application_type_id=None, status=None, start_date=None, end
         "approved": "已通过",
         "rejected": "已驳回",
         "resubmitted": "已重新提交",
+        "withdrawn": "已撤回",
+    }
+
+    action_map = {
+        "submit": "提交",
+        "approve": "审批通过",
+        "reject": "驳回",
+        "supplement": "补充说明",
+        "resubmit": "重新提交",
+        "withdraw": "撤回",
     }
 
     for rd in rows_data:
+        latest = rd["latest_action"]
         record = {
             "申请编号": rd["id"],
             "申请人": rd["applicant_name"],
             "申请类型": rd["application_type_name"],
             "状态": status_map.get(rd["status"], rd["status"]),
             "创建时间": rd["created_at"],
+            "最近操作": action_map.get(latest["action"], latest["action"]) if latest else "",
+            "最近操作人": latest["operator_name"] if latest else "",
+            "最近操作说明": latest["remark"] if latest else "",
         }
         for f in rd["snapshot"]:
             record[f["name"]] = rd["field_values"].get(f["id"], "")
