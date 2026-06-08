@@ -5,6 +5,7 @@ import { getApplication, approveApplication, rejectApplication } from '@/api'
 import { useAuthStore } from '@/store'
 import DynamicForm from '@/components/DynamicForm'
 import StatusBadge from '@/components/StatusBadge'
+import { useToast, ToastContainer } from '@/components/Toast'
 import type { Application, ProcessLog } from '@/types'
 
 const actionLabelMap: Record<string, string> = {
@@ -62,6 +63,7 @@ export default function ApprovalDetail() {
   const [showReject, setShowReject] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const user = useAuthStore((s) => s.user)
+  const { toasts, showToast, dismissToast } = useToast()
 
   useEffect(() => {
     loadApp()
@@ -72,6 +74,7 @@ export default function ApprovalDetail() {
       const data = await getApplication(id!)
       setApp(data)
     } catch {
+      showToast('加载审批详情失败')
     } finally {
       setLoading(false)
     }
@@ -83,8 +86,10 @@ export default function ApprovalDetail() {
     setSubmitting(true)
     try {
       await approveApplication(app.id, user.id)
+      showToast('审批通过', 'success')
       loadApp()
-    } catch {
+    } catch (err: any) {
+      showToast(err.message || '审批操作失败')
     } finally {
       setSubmitting(false)
     }
@@ -98,8 +103,10 @@ export default function ApprovalDetail() {
       await rejectApplication(app.id, user.id, rejectReason.trim())
       setShowReject(false)
       setRejectReason('')
+      showToast('已驳回申请', 'success')
       loadApp()
-    } catch {
+    } catch (err: any) {
+      showToast(err.message || '驳回操作失败')
     } finally {
       setSubmitting(false)
     }
@@ -114,6 +121,8 @@ export default function ApprovalDetail() {
 
   return (
     <div>
+      <ToastContainer toasts={toasts} dismissToast={dismissToast} />
+
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => navigate('/supervisor/applications')} className="p-1 rounded hover:bg-gray-100" style={{ color: 'var(--color-primary)' }}>
           <ArrowLeft size={20} />

@@ -3,6 +3,18 @@ from uuid import uuid4
 from api.database import get_db
 
 
+async def _build_status_filter(query, status_param, params):
+    if not status_param:
+        return query, params
+    statuses = [s.strip() for s in status_param.split(",") if s.strip()]
+    if not statuses:
+        return query, params
+    placeholders = ",".join(["?"] * len(statuses))
+    query += f" AND a.status IN ({placeholders})"
+    params.extend(statuses)
+    return query, params
+
+
 async def get_approvals(status=None):
     db = await get_db()
     query = """
@@ -15,12 +27,7 @@ async def get_approvals(status=None):
         WHERE 1=1
     """
     params = []
-    if status:
-        if status == "pending":
-            query += " AND a.status IN ('pending', 'resubmitted')"
-        else:
-            query += " AND a.status = ?"
-            params.append(status)
+    query, params = await _build_status_filter(query, status, params)
     query += " ORDER BY a.created_at DESC"
     cursor = await db.execute(query, params)
     rows = await cursor.fetchall()
@@ -32,7 +39,7 @@ async def get_approvals(status=None):
         )
         fc_row = await cursor2.fetchone()
         snapshot = json.loads(fc_row["fields_json"]) if fc_row else []
-        latest = await _get_latest_action(row["id"])
+        latest = await _get_latest_status_action(row["id"])
         result.append({
             "id": row["id"],
             "application_type_id": row["application_type_id"],
@@ -119,10 +126,10 @@ async def reject_application(app_id, supervisor_id, reason):
     return "ok"
 
 
-async def _get_latest_action(app_id):
+async def _get_latest_status_action(app_id):
     db = await get_db()
     cursor = await db.execute(
-        "SELECT id, application_id, action, operator_id, operator_name, remark, created_at FROM application_logs WHERE application_id = ? ORDER BY created_at DESC LIMIT 1",
+        "SELECT id, application_id, action, operator_id, operator_name, remark, created_at FROM application_logs WHERE application_id = ? AND action != 'supplement' ORDER BY rowid DESC LIMIT 1",
         (app_id,),
     )
     row = await cursor.fetchone()

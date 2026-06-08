@@ -4,10 +4,10 @@ import io
 from api.database import get_db
 
 
-async def _get_latest_action(app_id):
+async def _get_latest_status_action(app_id):
     db = await get_db()
     cursor = await db.execute(
-        "SELECT action, operator_name, remark, created_at FROM application_logs WHERE application_id = ? ORDER BY created_at DESC LIMIT 1",
+        "SELECT action, operator_name, remark, created_at FROM application_logs WHERE application_id = ? AND action != 'supplement' ORDER BY rowid DESC LIMIT 1",
         (app_id,),
     )
     row = await cursor.fetchone()
@@ -37,8 +37,11 @@ async def export_csv(application_type_id=None, status=None, start_date=None, end
         query += " AND a.application_type_id = ?"
         params.append(application_type_id)
     if status:
-        query += " AND a.status = ?"
-        params.append(status)
+        statuses = [s.strip() for s in status.split(",") if s.strip()]
+        if statuses:
+            placeholders = ",".join(["?"] * len(statuses))
+            query += f" AND a.status IN ({placeholders})"
+            params.extend(statuses)
     if start_date:
         query += " AND a.created_at >= ?"
         params.append(start_date)
@@ -65,7 +68,7 @@ async def export_csv(application_type_id=None, status=None, start_date=None, end
             if f["name"] not in all_field_names_ordered:
                 all_field_names_ordered.append(f["name"])
 
-        latest = await _get_latest_action(row["id"])
+        latest = await _get_latest_status_action(row["id"])
 
         rows_data.append({
             "id": row["id"],

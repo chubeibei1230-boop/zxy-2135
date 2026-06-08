@@ -5,9 +5,9 @@ import { useAuthStore } from '@/store'
 import StatusBadge from '@/components/StatusBadge'
 import type { Application, ApplicationStatus } from '@/types'
 
-const tabs: { label: string; value: ApplicationStatus | '' }[] = [
+const tabs: { label: string; value: string }[] = [
   { label: '全部', value: '' },
-  { label: '待审批', value: 'pending' },
+  { label: '待审批', value: 'pending,resubmitted' },
   { label: '已通过', value: 'approved' },
   { label: '已驳回', value: 'rejected' },
   { label: '已重提', value: 'resubmitted' },
@@ -25,7 +25,7 @@ const actionLabelMap: Record<string, string> = {
 
 export default function ApplicationList() {
   const [applications, setApplications] = useState<Application[]>([])
-  const [activeTab, setActiveTab] = useState<ApplicationStatus | ''>('')
+  const [activeTab, setActiveTab] = useState('')
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)

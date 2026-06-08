@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Download } from 'lucide-react'
 import { getApplicationTypes, exportApplications } from '@/api'
-import type { ApplicationType, ApplicationStatus } from '@/types'
+import { useToast, ToastContainer } from '@/components/Toast'
+import type { ApplicationType } from '@/types'
 
-const statusOptions: { label: string; value: ApplicationStatus | '' }[] = [
+const statusOptions: { label: string; value: string }[] = [
   { label: '全部', value: '' },
-  { label: '待审批', value: 'pending' },
+  { label: '待审批', value: 'pending,resubmitted' },
   { label: '已通过', value: 'approved' },
   { label: '已驳回', value: 'rejected' },
   { label: '已重提', value: 'resubmitted' },
@@ -15,13 +16,14 @@ const statusOptions: { label: string; value: ApplicationStatus | '' }[] = [
 export default function Export() {
   const [types, setTypes] = useState<ApplicationType[]>([])
   const [selectedType, setSelectedType] = useState('')
-  const [selectedStatus, setSelectedStatus] = useState<ApplicationStatus | ''>('')
+  const [selectedStatus, setSelectedStatus] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [exporting, setExporting] = useState(false)
+  const { toasts, showToast, dismissToast } = useToast()
 
   useEffect(() => {
-    getApplicationTypes().then(setTypes).catch(() => {})
+    getApplicationTypes().then(setTypes).catch(() => showToast('加载申请类型失败'))
   }, [])
 
   async function handleExport() {
@@ -33,6 +35,10 @@ export default function Export() {
       if (dateFrom) filters.start_date = dateFrom
       if (dateTo) filters.end_date = dateTo
       const blob = await exportApplications(filters)
+      if (blob.size === 0) {
+        showToast('没有符合条件的数据可导出')
+        return
+      }
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -41,7 +47,9 @@ export default function Export() {
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-    } catch {
+      showToast('导出成功', 'success')
+    } catch (err: any) {
+      showToast(err.message || '导出失败')
     } finally {
       setExporting(false)
     }
@@ -49,6 +57,8 @@ export default function Export() {
 
   return (
     <div>
+      <ToastContainer toasts={toasts} dismissToast={dismissToast} />
+
       <h2 className="text-xl font-bold mb-6" style={{ color: 'var(--color-primary)' }}>导出数据</h2>
 
       <div className="border rounded-lg p-6 space-y-4" style={{ borderColor: 'var(--color-border)' }}>
@@ -69,7 +79,7 @@ export default function Export() {
           <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-primary)' }}>状态</label>
           <select
             value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value as ApplicationStatus | '')}
+            onChange={(e) => setSelectedStatus(e.target.value)}
             className="w-full px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
             style={{ borderColor: 'var(--color-border)' }}
           >

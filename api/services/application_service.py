@@ -17,7 +17,7 @@ async def _add_log(application_id, action, operator_id, operator_name, remark=""
 async def _get_process_logs(app_id):
     db = await get_db()
     cursor = await db.execute(
-        "SELECT id, application_id, action, operator_id, operator_name, remark, created_at FROM application_logs WHERE application_id = ? ORDER BY created_at",
+        "SELECT id, application_id, action, operator_id, operator_name, remark, created_at FROM application_logs WHERE application_id = ? ORDER BY rowid",
         (app_id,),
     )
     rows = await cursor.fetchall()
@@ -35,10 +35,10 @@ async def _get_process_logs(app_id):
     ]
 
 
-async def _get_latest_action(app_id):
+async def _get_latest_status_action(app_id):
     db = await get_db()
     cursor = await db.execute(
-        "SELECT id, application_id, action, operator_id, operator_name, remark, created_at FROM application_logs WHERE application_id = ? ORDER BY created_at DESC LIMIT 1",
+        "SELECT id, application_id, action, operator_id, operator_name, remark, created_at FROM application_logs WHERE application_id = ? AND action != 'supplement' ORDER BY rowid DESC LIMIT 1",
         (app_id,),
     )
     row = await cursor.fetchone()
@@ -83,6 +83,18 @@ async def create_application(application_type_id, applicant_id, field_values, ap
     return app_id
 
 
+async def _build_status_filter(query, status_param, params):
+    if not status_param:
+        return query, params
+    statuses = [s.strip() for s in status_param.split(",") if s.strip()]
+    if not statuses:
+        return query, params
+    placeholders = ",".join(["?"] * len(statuses))
+    query += f" AND a.status IN ({placeholders})"
+    params.extend(statuses)
+    return query, params
+
+
 async def get_applications(applicant_id=None, status=None):
     db = await get_db()
     query = """
@@ -98,19 +110,14 @@ async def get_applications(applicant_id=None, status=None):
     if applicant_id:
         query += " AND a.applicant_id = ?"
         params.append(applicant_id)
-    if status:
-        if status == "pending":
-            query += " AND a.status IN ('pending', 'resubmitted')"
-        else:
-            query += " AND a.status = ?"
-            params.append(status)
+    query, params = await _build_status_filter(query, status, params)
     query += " ORDER BY a.created_at DESC"
     cursor = await db.execute(query, params)
     rows = await cursor.fetchall()
     result = []
     for row in rows:
         snapshot = await _get_field_snapshot(row["application_type_id"], row["field_version"])
-        latest = await _get_latest_action(row["id"])
+        latest = await _get_latest_status_action(row["id"])
         result.append({
             "id": row["id"],
             "application_type_id": row["application_type_id"],
@@ -146,7 +153,7 @@ async def get_application(app_id):
     snapshot = await _get_field_snapshot(row["application_type_id"], row["field_version"])
     notes = await _get_supplement_notes(app_id)
     logs = await _get_process_logs(app_id)
-    latest = await _get_latest_action(app_id)
+    latest = await _get_latest_status_action(app_id)
     return {
         "id": row["id"],
         "application_type_id": row["application_type_id"],
@@ -260,7 +267,7 @@ async def _get_field_snapshot(application_type_id, field_version):
 async def _get_supplement_notes(app_id):
     db = await get_db()
     cursor = await db.execute(
-        "SELECT id, content, created_at FROM supplement_notes WHERE application_id = ? ORDER BY created_at",
+        "SELECT id, content, created_at FROM supplement_notes WHERE application_id = ? ORDER BY rowid",
         (app_id,),
     )
     rows = await cursor.fetchall()

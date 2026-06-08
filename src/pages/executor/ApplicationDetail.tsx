@@ -5,6 +5,7 @@ import { getApplication, supplementApplication, resubmitApplication, withdrawApp
 import { useAuthStore } from '@/store'
 import DynamicForm from '@/components/DynamicForm'
 import StatusBadge from '@/components/StatusBadge'
+import { useToast, ToastContainer } from '@/components/Toast'
 import type { Application, ProcessLog } from '@/types'
 
 const actionLabelMap: Record<string, string> = {
@@ -63,6 +64,7 @@ export default function ApplicationDetail() {
   const [showWithdraw, setShowWithdraw] = useState(false)
   const [withdrawReason, setWithdrawReason] = useState('')
   const user = useAuthStore((s) => s.user)
+  const { toasts, showToast, dismissToast } = useToast()
 
   useEffect(() => {
     loadApp()
@@ -73,6 +75,7 @@ export default function ApplicationDetail() {
       const data = await getApplication(id!)
       setApp(data)
     } catch {
+      showToast('加载申请详情失败')
     } finally {
       setLoading(false)
     }
@@ -85,8 +88,10 @@ export default function ApplicationDetail() {
     try {
       await supplementApplication(id!, noteContent.trim(), user.id)
       setNoteContent('')
+      showToast('补充说明已添加', 'success')
       loadApp()
-    } catch {
+    } catch (err: any) {
+      showToast(err.message || '添加补充说明失败')
     } finally {
       setSubmitting(false)
     }
@@ -97,8 +102,10 @@ export default function ApplicationDetail() {
     setSubmitting(true)
     try {
       await resubmitApplication(id!, user.id)
+      showToast('申请已重新提交', 'success')
       loadApp()
-    } catch {
+    } catch (err: any) {
+      showToast(err.message || '重新提交失败')
     } finally {
       setSubmitting(false)
     }
@@ -111,8 +118,10 @@ export default function ApplicationDetail() {
       await withdrawApplication(id!, user.id, withdrawReason)
       setShowWithdraw(false)
       setWithdrawReason('')
+      showToast('申请已撤回', 'success')
       loadApp()
-    } catch {
+    } catch (err: any) {
+      showToast(err.message || '撤回申请失败')
     } finally {
       setSubmitting(false)
     }
@@ -127,6 +136,8 @@ export default function ApplicationDetail() {
 
   return (
     <div>
+      <ToastContainer toasts={toasts} dismissToast={dismissToast} />
+
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => navigate('/executor/applications')} className="p-1 rounded hover:bg-gray-100" style={{ color: 'var(--color-primary)' }}>
           <ArrowLeft size={20} />
