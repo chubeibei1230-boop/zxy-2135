@@ -38,8 +38,11 @@ async def get_applications(applicant_id=None, status=None):
         query += " AND a.applicant_id = ?"
         params.append(applicant_id)
     if status:
-        query += " AND a.status = ?"
-        params.append(status)
+        if status == "pending":
+            query += " AND a.status IN ('pending', 'resubmitted')"
+        else:
+            query += " AND a.status = ?"
+            params.append(status)
     query += " ORDER BY a.created_at DESC"
     cursor = await db.execute(query, params)
     rows = await cursor.fetchall()
@@ -121,7 +124,7 @@ async def resubmit_application(app_id):
     if not row or row["status"] != "rejected":
         return False
     await db.execute(
-        "UPDATE applications SET status = 'pending', reject_reason = '', updated_at = datetime('now') WHERE id = ?",
+        "UPDATE applications SET status = 'resubmitted', reject_reason = '', updated_at = datetime('now') WHERE id = ?",
         (app_id,),
     )
     await db.commit()

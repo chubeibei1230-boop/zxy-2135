@@ -1,3 +1,4 @@
+import { useRef, forwardRef, useImperativeHandle } from 'react'
 import type { FieldType } from '@/types'
 
 interface Props {
@@ -7,7 +8,28 @@ interface Props {
   readOnly?: boolean
 }
 
-export default function DynamicForm({ fields, values, onChange, readOnly }: Props) {
+export interface DynamicFormHandle {
+  validate: () => string[]
+}
+
+export default forwardRef<DynamicFormHandle, Props>(function DynamicForm({ fields, values, onChange, readOnly }, ref) {
+  const firstInvalidRef = useRef<HTMLDivElement | null>(null)
+
+  useImperativeHandle(ref, () => ({
+    validate: () => {
+      const errors: string[] = []
+      const sorted = [...fields].sort((a, b) => a.sort_order - b.sort_order)
+      for (const field of sorted) {
+        if (!field.required) continue
+        const val = values[field.id]
+        const empty = val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)
+        if (empty) {
+          errors.push(field.name)
+        }
+      }
+      return errors
+    }
+  }))
   const sorted = [...fields].sort((a, b) => a.sort_order - b.sort_order)
 
   function handleChange(id: string, val: any) {
@@ -126,4 +148,4 @@ export default function DynamicForm({ fields, values, onChange, readOnly }: Prop
       ))}
     </div>
   )
-}
+})

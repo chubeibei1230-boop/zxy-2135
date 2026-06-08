@@ -26,23 +26,14 @@ async def export_csv(application_type_id=None, status=None, start_date=None, end
         query += " AND a.created_at >= ?"
         params.append(start_date)
     if end_date:
-        query += " AND a.created_at <= ?"
+        query += " AND a.created_at < date(?, '+1 day')"
         params.append(end_date)
     query += " ORDER BY a.created_at DESC"
     cursor = await db.execute(query, params)
     rows = await cursor.fetchall()
 
-    status_map = {
-        "pending": "待审批",
-        "approved": "已通过",
-        "rejected": "已驳回",
-        "resubmitted": "已重新提交",
-    }
-
-    output = io.StringIO()
-    base_headers = ["申请编号", "申请人", "申请类型", "状态", "创建时间"]
-    field_names = []
-    written = False
+    rows_data = []
+    all_field_names_ordered = []
 
     for row in rows:
         fc_cursor = await db.execute(
@@ -53,25 +44,43 @@ async def export_csv(application_type_id=None, status=None, start_date=None, end
         snapshot = json.loads(fc_row["fields_json"]) if fc_row else []
         field_values = json.loads(row["field_values_json"])
 
-        if not written:
-            field_names = [f["name"] for f in snapshot]
-            writer = csv.DictWriter(output, fieldnames=base_headers + field_names)
-            writer.writeheader()
-            written = True
-
-        record = {
-            "申请编号": row["id"],
-            "申请人": row["applicant_name"],
-            "申请类型": row["application_type_name"],
-            "状态": status_map.get(row["status"], row["status"]),
-            "创建时间": row["created_at"],
-        }
         for f in snapshot:
-            record[f["name"]] = field_values.get(f["id"], "")
-        writer.writerow(record)
+            if f["name"] not in all_field_names_ordered:
+                all_field_names_ordered.append(f["name"])
 
-    if not written:
-        writer = csv.DictWriter(output, fieldnames=base_headers)
-        writer.writeheader()
+        rows_data.append({
+            "id": row["id"],
+            "applicant_name": row["applicant_name"],
+            "application_type_name": row["application_type_name"],
+            "status": row["status"],
+            "created_at": row["created_at"],
+            "snapshot": snapshot,
+            "field_values": field_values,
+        })
+
+    output = io.StringIO()
+    base_headers = ["申请编号", "申请人", "申请类型", "状态", "创建时间"]
+    headers = base_headers + all_field_names_ordered
+    writer = csv.DictWriter(output, fieldnames=headers)
+    writer.writeheader()
+
+    status_map = {
+        "pending": "待审批",
+        "approved": "已通过",
+        "rejected": "已驳回",
+        "resubmitted": "已重新提交",
+    }
+
+    for rd in rows_data:
+        record = {
+            "申请编号": rd["id"],
+            "申请人": rd["applicant_name"],
+            "申请类型": rd["application_type_name"],
+            "状态": status_map.get(rd["status"], rd["status"]),
+            "创建时间": rd["created_at"],
+        }
+        for f in rd["snapshot"]:
+            record[f["name"]] = rd["field_values"].get(f["id"], "")
+        writer.writerow(record)
 
     return output.getvalue()

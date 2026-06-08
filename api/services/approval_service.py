@@ -16,8 +16,11 @@ async def get_approvals(status=None):
     """
     params = []
     if status:
-        query += " AND a.status = ?"
-        params.append(status)
+        if status == "pending":
+            query += " AND a.status IN ('pending', 'resubmitted')"
+        else:
+            query += " AND a.status = ?"
+            params.append(status)
     query += " ORDER BY a.created_at DESC"
     cursor = await db.execute(query, params)
     rows = await cursor.fetchall()
@@ -53,7 +56,7 @@ async def approve_application(app_id, supervisor_id):
         (app_id,),
     )
     row = await cursor.fetchone()
-    if not row:
+    if not row or row["status"] not in ("pending", "resubmitted"):
         return None
     log_id = str(uuid4())
     await db.execute(
@@ -75,7 +78,7 @@ async def reject_application(app_id, supervisor_id, reason):
         (app_id,),
     )
     row = await cursor.fetchone()
-    if not row:
+    if not row or row["status"] not in ("pending", "resubmitted"):
         return None
     log_id = str(uuid4())
     await db.execute(
