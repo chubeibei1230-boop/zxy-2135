@@ -15,11 +15,11 @@ async def _build_status_filter(query, status_param, params):
     return query, params
 
 
-async def get_approvals(status=None):
+async def get_approvals(status=None, is_urgent=None):
     db = await get_db()
     query = """
         SELECT a.id, a.application_type_id, a.applicant_id, a.field_version,
-               a.field_values_json, a.status, a.reject_reason, a.created_at, a.updated_at,
+               a.field_values_json, a.status, a.reject_reason, a.urgent, a.urgent_reason, a.created_at, a.updated_at,
                at.name as application_type_name, u.name as applicant_name
         FROM applications a
         JOIN application_types at ON a.application_type_id = at.id
@@ -28,6 +28,9 @@ async def get_approvals(status=None):
     """
     params = []
     query, params = await _build_status_filter(query, status, params)
+    if is_urgent is not None:
+        query += " AND a.urgent = ?"
+        params.append(1 if is_urgent else 0)
     query += " ORDER BY a.created_at DESC"
     cursor = await db.execute(query, params)
     rows = await cursor.fetchall()
@@ -51,6 +54,8 @@ async def get_approvals(status=None):
             "field_snapshot": snapshot,
             "status": row["status"],
             "reject_reason": row["reject_reason"] or "",
+            "urgent": bool(row["urgent"]),
+            "urgent_reason": row["urgent_reason"] or "",
             "created_at": row["created_at"],
             "updated_at": row["updated_at"],
             "latest_action": latest,

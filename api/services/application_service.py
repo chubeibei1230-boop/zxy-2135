@@ -55,7 +55,7 @@ async def _get_latest_status_action(app_id):
     }
 
 
-async def create_application(application_type_id, applicant_id, field_values, applicant_name=""):
+async def create_application(application_type_id, applicant_id, field_values, applicant_name="", urgent=False, urgent_reason=""):
     db = await get_db()
     cursor = await db.execute(
         "SELECT version FROM application_types WHERE id = ?",
@@ -66,9 +66,10 @@ async def create_application(application_type_id, applicant_id, field_values, ap
         return None
     field_version = type_row["version"]
     app_id = str(uuid4())
+    urgent_val = 1 if urgent else 0
     await db.execute(
-        "INSERT INTO applications (id, application_type_id, applicant_id, field_version, field_values_json) VALUES (?, ?, ?, ?, ?)",
-        (app_id, application_type_id, applicant_id, field_version, json.dumps(field_values, ensure_ascii=False)),
+        "INSERT INTO applications (id, application_type_id, applicant_id, field_version, field_values_json, urgent, urgent_reason) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (app_id, application_type_id, applicant_id, field_version, json.dumps(field_values, ensure_ascii=False), urgent_val, urgent_reason),
     )
     if not applicant_name:
         cursor2 = await db.execute("SELECT name FROM users WHERE id = ?", (applicant_id,))
@@ -95,11 +96,11 @@ async def _build_status_filter(query, status_param, params):
     return query, params
 
 
-async def get_applications(applicant_id=None, status=None):
+async def get_applications(applicant_id=None, status=None, is_urgent=None):
     db = await get_db()
     query = """
         SELECT a.id, a.application_type_id, a.applicant_id, a.field_version,
-               a.field_values_json, a.status, a.reject_reason, a.created_at, a.updated_at,
+               a.field_values_json, a.status, a.reject_reason, a.urgent, a.urgent_reason, a.created_at, a.updated_at,
                at.name as application_type_name, u.name as applicant_name
         FROM applications a
         JOIN application_types at ON a.application_type_id = at.id
@@ -111,6 +112,9 @@ async def get_applications(applicant_id=None, status=None):
         query += " AND a.applicant_id = ?"
         params.append(applicant_id)
     query, params = await _build_status_filter(query, status, params)
+    if is_urgent is not None:
+        query += " AND a.urgent = ?"
+        params.append(1 if is_urgent else 0)
     query += " ORDER BY a.created_at DESC"
     cursor = await db.execute(query, params)
     rows = await cursor.fetchall()
@@ -129,6 +133,8 @@ async def get_applications(applicant_id=None, status=None):
             "field_snapshot": snapshot,
             "status": row["status"],
             "reject_reason": row["reject_reason"] or "",
+            "urgent": bool(row["urgent"]),
+            "urgent_reason": row["urgent_reason"] or "",
             "created_at": row["created_at"],
             "updated_at": row["updated_at"],
             "latest_action": latest,
@@ -140,7 +146,7 @@ async def get_application(app_id):
     db = await get_db()
     cursor = await db.execute("""
         SELECT a.id, a.application_type_id, a.applicant_id, a.field_version,
-               a.field_values_json, a.status, a.reject_reason, a.created_at, a.updated_at,
+               a.field_values_json, a.status, a.reject_reason, a.urgent, a.urgent_reason, a.created_at, a.updated_at,
                at.name as application_type_name, u.name as applicant_name
         FROM applications a
         JOIN application_types at ON a.application_type_id = at.id
@@ -165,6 +171,8 @@ async def get_application(app_id):
         "field_snapshot": snapshot,
         "status": row["status"],
         "reject_reason": row["reject_reason"] or "",
+        "urgent": bool(row["urgent"]),
+        "urgent_reason": row["urgent_reason"] or "",
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
         "supplement_notes": notes,
@@ -197,7 +205,7 @@ async def add_supplement(app_id, content, operator_id, operator_name=""):
     return note_id
 
 
-async def resubmit_application(app_id, operator_id, operator_name=""):
+async def resubmit_application(app_id, operator_id, operator_name="", urgent=None, urgent_reason=None):
     db = await get_db()
     cursor = await db.execute(
         "SELECT status FROM applications WHERE id = ?",
@@ -210,10 +218,18 @@ async def resubmit_application(app_id, operator_id, operator_name=""):
         cursor2 = await db.execute("SELECT name FROM users WHERE id = ?", (operator_id,))
         user_row = await cursor2.fetchone()
         operator_name = user_row["name"] if user_row else ""
-    await db.execute(
-        "UPDATE applications SET status = 'resubmitted', reject_reason = '', updated_at = datetime('now') WHERE id = ?",
-        (app_id,),
-    )
+    if urgent is not None:
+        urgent_val = 1 if urgent else 0
+        reason_val = urgent_reason if urgent_reason else ""
+        await db.execute(
+            "UPDATE applications SET status = 'resubmitted', reject_reason = '', urgent = ?, urgent_reason = ?, updated_at = datetime('now') WHERE id = ?",
+            (urgent_val, reason_val, app_id),
+        )
+    else:
+        await db.execute(
+            "UPDATE applications SET status = 'resubmitted', reject_reason = '', updated_at = datetime('now') WHERE id = ?",
+            (app_id,),
+        )
     log_id = str(uuid4())
     await db.execute(
         "INSERT INTO application_logs (id, application_id, action, operator_id, operator_name, remark) VALUES (?, ?, 'resubmit', ?, ?, '')",

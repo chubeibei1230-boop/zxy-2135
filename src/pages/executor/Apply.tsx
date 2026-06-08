@@ -13,6 +13,8 @@ export default function Apply() {
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
+  const [urgent, setUrgent] = useState(false)
+  const [urgentReason, setUrgentReason] = useState('')
   const user = useAuthStore((s) => s.user)
   const formRef = useRef<DynamicFormHandle>(null)
 
@@ -25,6 +27,8 @@ export default function Apply() {
     setValues({})
     setSuccess(false)
     setErrors([])
+    setUrgent(false)
+    setUrgentReason('')
     if (!typeId) { setFields([]); return }
     setLoading(true)
     try {
@@ -48,11 +52,13 @@ export default function Apply() {
     setErrors([])
     setSubmitting(true)
     try {
-      await createApplication(selectedType, user.id, values)
+      await createApplication(selectedType, user.id, values, urgent, urgentReason)
       setSuccess(true)
       setValues({})
       setSelectedType('')
       setFields([])
+      setUrgent(false)
+      setUrgentReason('')
     } catch {
     } finally {
       setSubmitting(false)
@@ -93,6 +99,36 @@ export default function Apply() {
 
         {fields.length > 0 && (
           <DynamicForm ref={formRef} fields={fields} values={values} onChange={setValues} />
+        )}
+
+        {fields.length > 0 && (
+          <div className="border rounded-lg p-4 space-y-3" style={{ borderColor: 'var(--color-border)' }}>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={urgent}
+                onChange={(e) => {
+                  setUrgent(e.target.checked)
+                  if (!e.target.checked) setUrgentReason('')
+                }}
+                className="accent-red-500 w-4 h-4"
+              />
+              <span className="text-sm font-medium text-red-600">加急处理</span>
+            </label>
+            {urgent && (
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-primary)' }}>加急原因</label>
+                <textarea
+                  value={urgentReason}
+                  onChange={(e) => setUrgentReason(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-y"
+                  style={{ borderColor: 'var(--color-border)' }}
+                  placeholder="请说明加急原因..."
+                />
+              </div>
+            )}
+          </div>
         )}
 
         {fields.length > 0 && (

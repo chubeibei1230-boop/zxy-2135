@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS applications (
     field_values_json TEXT NOT NULL DEFAULT '{}',
     status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected', 'resubmitted', 'withdrawn')),
     reject_reason TEXT DEFAULT '',
+    urgent INTEGER NOT NULL DEFAULT 0,
+    urgent_reason TEXT DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (application_type_id) REFERENCES application_types(id),
@@ -97,6 +99,7 @@ CREATE TABLE IF NOT EXISTS application_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
+CREATE INDEX IF NOT EXISTS idx_applications_urgent ON applications(urgent);
 CREATE INDEX IF NOT EXISTS idx_applications_applicant ON applications(applicant_id);
 CREATE INDEX IF NOT EXISTS idx_applications_type ON applications(application_type_id);
 CREATE INDEX IF NOT EXISTS idx_field_configs_type_version ON field_configs(application_type_id, version);

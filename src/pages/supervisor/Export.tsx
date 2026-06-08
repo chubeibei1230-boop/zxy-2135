@@ -17,6 +17,7 @@ export default function Export() {
   const [types, setTypes] = useState<ApplicationType[]>([])
   const [selectedType, setSelectedType] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('')
+  const [selectedUrgent, setSelectedUrgent] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [exporting, setExporting] = useState(false)
@@ -32,6 +33,7 @@ export default function Export() {
       const filters: Record<string, string> = {}
       if (selectedType) filters.application_type_id = selectedType
       if (selectedStatus) filters.status = selectedStatus
+      if (selectedUrgent) filters.is_urgent = selectedUrgent
       if (dateFrom) filters.start_date = dateFrom
       if (dateTo) filters.end_date = dateTo
       const blob = await exportApplications(filters)
@@ -84,6 +86,20 @@ export default function Export() {
             style={{ borderColor: 'var(--color-border)' }}
           >
             {statusOptions.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-primary)' }}>是否加急</label>
+          <select
+            value={selectedUrgent}
+            onChange={(e) => setSelectedUrgent(e.target.value)}
+            className="w-full px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+            style={{ borderColor: 'var(--color-border)' }}
+          >
+            <option value="">全部</option>
+            <option value="1">加急</option>
+            <option value="0">非加急</option>
           </select>
         </div>
 

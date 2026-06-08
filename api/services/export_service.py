@@ -21,11 +21,11 @@ async def _get_latest_status_action(app_id):
     }
 
 
-async def export_csv(application_type_id=None, status=None, start_date=None, end_date=None):
+async def export_csv(application_type_id=None, status=None, start_date=None, end_date=None, is_urgent=None):
     db = await get_db()
     query = """
         SELECT a.id, a.application_type_id, a.applicant_id, a.field_version,
-               a.field_values_json, a.status, a.created_at,
+               a.field_values_json, a.status, a.urgent, a.urgent_reason, a.created_at,
                at.name as application_type_name, u.name as applicant_name
         FROM applications a
         JOIN application_types at ON a.application_type_id = at.id
@@ -48,6 +48,9 @@ async def export_csv(application_type_id=None, status=None, start_date=None, end
     if end_date:
         query += " AND a.created_at < date(?, '+1 day')"
         params.append(end_date)
+    if is_urgent is not None:
+        query += " AND a.urgent = ?"
+        params.append(1 if is_urgent else 0)
     query += " ORDER BY a.created_at DESC"
     cursor = await db.execute(query, params)
     rows = await cursor.fetchall()
@@ -75,6 +78,8 @@ async def export_csv(application_type_id=None, status=None, start_date=None, end
             "applicant_name": row["applicant_name"],
             "application_type_name": row["application_type_name"],
             "status": row["status"],
+            "urgent": bool(row["urgent"]),
+            "urgent_reason": row["urgent_reason"] or "",
             "created_at": row["created_at"],
             "snapshot": snapshot,
             "field_values": field_values,
@@ -82,7 +87,7 @@ async def export_csv(application_type_id=None, status=None, start_date=None, end
         })
 
     output = io.StringIO()
-    base_headers = ["申请编号", "申请人", "申请类型", "状态", "创建时间", "最近操作", "最近操作人", "最近操作说明"]
+    base_headers = ["申请编号", "申请人", "申请类型", "状态", "是否加急", "加急原因", "创建时间", "最近操作", "最近操作人", "最近操作说明"]
     headers = base_headers + all_field_names_ordered
     writer = csv.DictWriter(output, fieldnames=headers)
     writer.writeheader()
@@ -111,6 +116,8 @@ async def export_csv(application_type_id=None, status=None, start_date=None, end
             "申请人": rd["applicant_name"],
             "申请类型": rd["application_type_name"],
             "状态": status_map.get(rd["status"], rd["status"]),
+            "是否加急": "是" if rd["urgent"] else "否",
+            "加急原因": rd["urgent_reason"],
             "创建时间": rd["created_at"],
             "最近操作": action_map.get(latest["action"], latest["action"]) if latest else "",
             "最近操作人": latest["operator_name"] if latest else "",

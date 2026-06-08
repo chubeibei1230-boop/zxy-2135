@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Check, X, Ban, Clock } from 'lucide-react'
+import { ArrowLeft, Check, X, Ban, Clock, Zap } from 'lucide-react'
 import { getApplication, approveApplication, rejectApplication } from '@/api'
 import { useAuthStore } from '@/store'
 import DynamicForm from '@/components/DynamicForm'
@@ -129,7 +129,24 @@ export default function ApprovalDetail() {
         </button>
         <h2 className="text-xl font-bold" style={{ color: 'var(--color-primary)' }}>审批详情</h2>
         <StatusBadge status={app.status} />
+        {app.urgent && (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+            <Zap size={12} /> 加急
+          </span>
+        )}
       </div>
+
+      {app.urgent && (
+        <div className="mb-4 p-3 rounded-lg border-2 flex items-start gap-2 bg-red-50 border-red-300">
+          <Zap size={16} className="shrink-0 mt-0.5 text-red-600" />
+          <div className="text-sm">
+            <span className="font-semibold text-red-800">加急申请</span>
+            {app.urgent_reason && (
+              <p className="text-red-700 mt-1">加急原因：{app.urgent_reason}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {app.latest_action && (
         <div className="mb-4 p-3 rounded-lg border-2 flex items-start gap-2" style={{ borderColor: 'var(--color-accent)', backgroundColor: '#fffbeb' }}>

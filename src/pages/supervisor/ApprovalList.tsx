@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getApprovals } from '@/api'
 import StatusBadge from '@/components/StatusBadge'
+import { Zap } from 'lucide-react'
 import type { Application, ApplicationStatus } from '@/types'
 
 const tabs: { label: string; value: string }[] = [
@@ -25,18 +26,20 @@ const actionLabelMap: Record<string, string> = {
 export default function ApprovalList() {
   const [applications, setApplications] = useState<Application[]>([])
   const [activeTab, setActiveTab] = useState('')
+  const [urgentFilter, setUrgentFilter] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
   useEffect(() => {
     loadApplications()
-  }, [activeTab])
+  }, [activeTab, urgentFilter])
 
   async function loadApplications() {
     setLoading(true)
     try {
       const filters: Record<string, string> = {}
       if (activeTab) filters.status = activeTab
+      if (urgentFilter) filters.is_urgent = urgentFilter
       const data = await getApprovals(filters)
       setApplications(data)
     } catch {
@@ -74,6 +77,20 @@ export default function ApprovalList() {
         ))}
       </div>
 
+      <div className="mb-4 flex items-center gap-3">
+        <label className="text-sm font-medium" style={{ color: 'var(--color-primary)' }}>是否加急：</label>
+        <select
+          value={urgentFilter}
+          onChange={(e) => setUrgentFilter(e.target.value)}
+          className="px-3 py-1.5 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+          style={{ borderColor: 'var(--color-border)' }}
+        >
+          <option value="">全部</option>
+          <option value="1">加急</option>
+          <option value="0">非加急</option>
+        </select>
+      </div>
+
       {loading ? (
         <p className="text-center py-8 text-gray-500 text-sm">加载中...</p>
       ) : (
@@ -83,6 +100,7 @@ export default function ApprovalList() {
               <th className="text-left py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>申请人</th>
               <th className="text-left py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>申请类型</th>
               <th className="text-center py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>状态</th>
+              <th className="text-center py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>加急</th>
               <th className="text-left py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>最近操作</th>
               <th className="text-left py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>提交时间</th>
               <th className="text-right py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>操作</th>
@@ -94,6 +112,13 @@ export default function ApprovalList() {
                 <td className="py-2.5">{app.applicant_name}</td>
                 <td className="py-2.5">{app.application_type_name}</td>
                 <td className="py-2.5 text-center"><StatusBadge status={app.status} /></td>
+                <td className="py-2.5 text-center">
+                  {app.urgent ? (
+                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                      <Zap size={10} /> 加急
+                    </span>
+                  ) : <span className="text-gray-300">-</span>}
+                </td>
                 <td className="py-2.5 text-gray-500 text-xs">
                   {app.latest_action ? (
                     <span>{actionLabelMap[app.latest_action.action] || app.latest_action.action} · {app.latest_action.operator_name}</span>
@@ -108,7 +133,7 @@ export default function ApprovalList() {
               </tr>
             ))}
             {applications.length === 0 && (
-              <tr><td colSpan={6} className="text-center py-8 text-gray-400">暂无审批记录</td></tr>
+              <tr><td colSpan={7} className="text-center py-8 text-gray-400">暂无审批记录</td></tr>
             )}
           </tbody>
         </table>

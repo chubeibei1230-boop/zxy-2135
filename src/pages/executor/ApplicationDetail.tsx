@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, AlertTriangle, Undo2, Clock } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Undo2, Clock, Zap } from 'lucide-react'
 import { getApplication, supplementApplication, resubmitApplication, withdrawApplication } from '@/api'
 import { useAuthStore } from '@/store'
 import DynamicForm from '@/components/DynamicForm'
@@ -63,6 +63,9 @@ export default function ApplicationDetail() {
   const [submitting, setSubmitting] = useState(false)
   const [showWithdraw, setShowWithdraw] = useState(false)
   const [withdrawReason, setWithdrawReason] = useState('')
+  const [resubmitUrgent, setResubmitUrgent] = useState(false)
+  const [resubmitUrgentReason, setResubmitUrgentReason] = useState('')
+  const [showResubmit, setShowResubmit] = useState(false)
   const user = useAuthStore((s) => s.user)
   const { toasts, showToast, dismissToast } = useToast()
 
@@ -98,10 +101,11 @@ export default function ApplicationDetail() {
   }
 
   async function handleResubmit() {
-    if (!confirm('确定重新提交此申请？') || !user) return
+    if (!user) return
     setSubmitting(true)
     try {
-      await resubmitApplication(id!, user.id)
+      await resubmitApplication(id!, user.id, resubmitUrgent, resubmitUrgentReason)
+      setShowResubmit(false)
       showToast('申请已重新提交', 'success')
       loadApp()
     } catch (err: any) {
@@ -144,7 +148,24 @@ export default function ApplicationDetail() {
         </button>
         <h2 className="text-xl font-bold" style={{ color: 'var(--color-primary)' }}>申请详情</h2>
         <StatusBadge status={app.status} />
+        {app.urgent && (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+            <Zap size={12} /> 加急
+          </span>
+        )}
       </div>
+
+      {app.urgent && (
+        <div className="mb-4 p-3 rounded-lg border-2 flex items-start gap-2 bg-red-50 border-red-300">
+          <Zap size={16} className="shrink-0 mt-0.5 text-red-600" />
+          <div className="text-sm">
+            <span className="font-semibold text-red-800">加急申请</span>
+            {app.urgent_reason && (
+              <p className="text-red-700 mt-1">加急原因：{app.urgent_reason}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {app.latest_action && (
         <div className="mb-4 p-3 rounded-lg border-2 flex items-start gap-2" style={{ borderColor: 'var(--color-accent)', backgroundColor: '#fffbeb' }}>
@@ -226,15 +247,58 @@ export default function ApplicationDetail() {
       </div>
 
       <div className="flex gap-2">
-        {canResubmit && (
+        {canResubmit && !showResubmit && (
           <button
-            onClick={handleResubmit}
+            onClick={() => {
+              setResubmitUrgent(app?.urgent || false)
+              setResubmitUrgentReason(app?.urgent_reason || '')
+              setShowResubmit(true)
+            }}
             disabled={submitting}
             className="px-6 py-2 rounded text-sm font-semibold text-white disabled:opacity-50"
             style={{ backgroundColor: 'var(--color-primary)' }}
           >
             重新提交
           </button>
+        )}
+        {canResubmit && showResubmit && (
+          <div className="p-4 border-2 rounded-lg space-y-3 w-full" style={{ borderColor: 'var(--color-border)' }}>
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={resubmitUrgent}
+                  onChange={(e) => {
+                    setResubmitUrgent(e.target.checked)
+                    if (!e.target.checked) setResubmitUrgentReason('')
+                  }}
+                  className="accent-red-500 w-4 h-4"
+                />
+                <span className="text-sm font-medium text-red-600">加急处理</span>
+              </label>
+            </div>
+            {resubmitUrgent && (
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-primary)' }}>加急原因</label>
+                <textarea
+                  value={resubmitUrgentReason}
+                  onChange={(e) => setResubmitUrgentReason(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-y"
+                  style={{ borderColor: 'var(--color-border)' }}
+                  placeholder="请说明加急原因..."
+                />
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button onClick={handleResubmit} disabled={submitting} className="px-4 py-1.5 rounded text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: 'var(--color-primary)' }}>
+                确认重新提交
+              </button>
+              <button type="button" onClick={() => setShowResubmit(false)} className="px-4 py-1.5 rounded text-sm border" style={{ borderColor: 'var(--color-border)' }}>
+                取消
+              </button>
+            </div>
+          </div>
         )}
         {canWithdraw && !showWithdraw && (
           <button

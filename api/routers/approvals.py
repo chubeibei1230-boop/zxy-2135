@@ -6,8 +6,11 @@ router = APIRouter(prefix="/api/approvals", tags=["approvals"])
 
 
 @router.get("")
-async def list_approvals(status: str = None):
-    return await approval_service.get_approvals(status=status)
+async def list_approvals(status: str = None, is_urgent: str = None):
+    urgent_filter = None
+    if is_urgent is not None:
+        urgent_filter = is_urgent == "1" or is_urgent.lower() == "true"
+    return await approval_service.get_approvals(status=status, is_urgent=urgent_filter)
 
 
 @router.put("/{app_id}/approve")

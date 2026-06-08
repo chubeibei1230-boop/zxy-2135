@@ -51,6 +51,8 @@ class ApplicationCreate(BaseModel):
     application_type_id: str
     applicant_id: str
     field_values: Dict[str, Any] = {}
+    urgent: bool = False
+    urgent_reason: str = ""
 
 
 class ApplicationResponse(BaseModel):
@@ -64,6 +66,8 @@ class ApplicationResponse(BaseModel):
     field_snapshot: List[Dict[str, Any]]
     status: str
     reject_reason: str
+    urgent: bool
+    urgent_reason: str
     created_at: str
     updated_at: str
     supplement_notes: Optional[List[Dict[str, Any]]] = None
@@ -82,6 +86,8 @@ class ApplicationListItem(BaseModel):
     field_snapshot: List[Dict[str, Any]]
     status: str
     reject_reason: str
+    urgent: bool
+    urgent_reason: str
     created_at: str
     updated_at: str
     latest_action: Optional[Dict[str, Any]] = None
@@ -114,6 +120,12 @@ class ApprovalLogItem(BaseModel):
 class WithdrawRequest(BaseModel):
     applicant_id: str
     reason: str = ""
+
+
+class ResubmitRequest(BaseModel):
+    applicant_id: str = ""
+    urgent: bool = False
+    urgent_reason: str = ""
 
 
 class ApplicationLogItem(BaseModel):

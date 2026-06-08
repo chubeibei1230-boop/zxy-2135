@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from api.models import ApplicationCreate, SupplementRequest, WithdrawRequest
+from api.models import ApplicationCreate, SupplementRequest, WithdrawRequest, ResubmitRequest
 from api.services import application_service
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
@@ -8,7 +8,8 @@ router = APIRouter(prefix="/api/applications", tags=["applications"])
 @router.post("", status_code=201)
 async def create_application(body: ApplicationCreate):
     app_id = await application_service.create_application(
-        body.application_type_id, body.applicant_id, body.field_values
+        body.application_type_id, body.applicant_id, body.field_values,
+        urgent=body.urgent, urgent_reason=body.urgent_reason
     )
     if app_id is None:
         raise HTTPException(status_code=400, detail="申请类型不存在")
@@ -16,8 +17,11 @@ async def create_application(body: ApplicationCreate):
 
 
 @router.get("")
-async def list_applications(applicant_id: str = None, status: str = None):
-    return await application_service.get_applications(applicant_id=applicant_id, status=status)
+async def list_applications(applicant_id: str = None, status: str = None, is_urgent: str = None):
+    urgent_filter = None
+    if is_urgent is not None:
+        urgent_filter = is_urgent == "1" or is_urgent.lower() == "true"
+    return await application_service.get_applications(applicant_id=applicant_id, status=status, is_urgent=urgent_filter)
 
 
 @router.get("/{app_id}")
@@ -35,11 +39,15 @@ async def supplement_application(app_id: str, body: SupplementRequest):
 
 
 @router.put("/{app_id}/resubmit")
-async def resubmit_application(app_id: str, body: dict = None):
+async def resubmit_application(app_id: str, body: ResubmitRequest = None):
     operator_id = ""
-    if body and "applicant_id" in body:
-        operator_id = body["applicant_id"]
-    ok = await application_service.resubmit_application(app_id, operator_id)
+    urgent = None
+    urgent_reason = None
+    if body:
+        operator_id = body.applicant_id or ""
+        urgent = body.urgent
+        urgent_reason = body.urgent_reason
+    ok = await application_service.resubmit_application(app_id, operator_id, urgent=urgent, urgent_reason=urgent_reason)
     if not ok:
         raise HTTPException(status_code=400, detail="只能重新提交被驳回的申请")
     return {"ok": True}

@@ -61,6 +61,8 @@ export interface Application {
   status: ApplicationStatus
   supplement_notes: SupplementNote[]
   reject_reason?: string
+  urgent: boolean
+  urgent_reason: string
   created_at: string
   updated_at: string
   process_logs?: ProcessLog[]

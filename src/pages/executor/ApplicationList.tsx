@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getApplications } from '@/api'
 import { useAuthStore } from '@/store'
 import StatusBadge from '@/components/StatusBadge'
+import { Zap } from 'lucide-react'
 import type { Application, ApplicationStatus } from '@/types'
 
 const tabs: { label: string; value: string }[] = [
@@ -85,6 +86,7 @@ export default function ApplicationList() {
             <tr className="border-b-2" style={{ borderColor: 'var(--color-primary)' }}>
               <th className="text-left py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>申请类型</th>
               <th className="text-center py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>状态</th>
+              <th className="text-center py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>加急</th>
               <th className="text-left py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>最近操作</th>
               <th className="text-left py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>提交时间</th>
               <th className="text-right py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>操作</th>
@@ -95,6 +97,13 @@ export default function ApplicationList() {
               <tr key={app.id} className="border-b hover:bg-gray-50" style={{ borderColor: 'var(--color-border)' }}>
                 <td className="py-2.5">{app.application_type_name}</td>
                 <td className="py-2.5 text-center"><StatusBadge status={app.status} /></td>
+                <td className="py-2.5 text-center">
+                  {app.urgent ? (
+                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                      <Zap size={10} /> 加急
+                    </span>
+                  ) : <span className="text-gray-300">-</span>}
+                </td>
                 <td className="py-2.5 text-gray-500 text-xs">
                   {app.latest_action ? (
                     <span>{actionLabelMap[app.latest_action.action] || app.latest_action.action} · {app.latest_action.operator_name}</span>
@@ -109,7 +118,7 @@ export default function ApplicationList() {
               </tr>
             ))}
             {applications.length === 0 && (
-              <tr><td colSpan={5} className="text-center py-8 text-gray-400">暂无申请记录</td></tr>
+              <tr><td colSpan={6} className="text-center py-8 text-gray-400">暂无申请记录</td></tr>
             )}
           </tbody>
         </table>

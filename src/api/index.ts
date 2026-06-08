@@ -67,10 +67,10 @@ export async function updateFields(applicationTypeId: string, fields: any[]) {
   })
 }
 
-export async function createApplication(applicationTypeId: string, applicantId: string, fieldValues: Record<string, any>) {
+export async function createApplication(applicationTypeId: string, applicantId: string, fieldValues: Record<string, any>, urgent: boolean = false, urgentReason: string = '') {
   return request<{ id: string }>('/applications', {
     method: 'POST',
-    body: JSON.stringify({ application_type_id: applicationTypeId, applicant_id: applicantId, field_values: fieldValues }),
+    body: JSON.stringify({ application_type_id: applicationTypeId, applicant_id: applicantId, field_values: fieldValues, urgent, urgent_reason: urgentReason }),
   })
 }
 
@@ -90,10 +90,10 @@ export async function supplementApplication(id: string, content: string, operato
   })
 }
 
-export async function resubmitApplication(id: string, applicantId: string = '') {
+export async function resubmitApplication(id: string, applicantId: string = '', urgent: boolean = false, urgentReason: string = '') {
   return request<{ ok: boolean }>(`/applications/${id}/resubmit`, {
     method: 'PUT',
-    body: JSON.stringify({ applicant_id: applicantId }),
+    body: JSON.stringify({ applicant_id: applicantId, urgent, urgent_reason: urgentReason }),
   })
 }
 
