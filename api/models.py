@@ -73,6 +73,7 @@ class ApplicationResponse(BaseModel):
     supplement_notes: Optional[List[Dict[str, Any]]] = None
     process_logs: Optional[List[Dict[str, Any]]] = None
     latest_action: Optional[Dict[str, Any]] = None
+    reminder_info: Optional[Dict[str, Any]] = None
 
 
 class ApplicationListItem(BaseModel):
@@ -91,6 +92,7 @@ class ApplicationListItem(BaseModel):
     created_at: str
     updated_at: str
     latest_action: Optional[Dict[str, Any]] = None
+    reminder_info: Optional[Dict[str, Any]] = None
 
 
 class SupplementRequest(BaseModel):
@@ -136,3 +138,15 @@ class ApplicationLogItem(BaseModel):
     operator_name: str
     remark: str
     created_at: str
+
+
+class RemindRequest(BaseModel):
+    operator_id: str
+    reason: str = ""
+
+
+class ReminderInfoResponse(BaseModel):
+    reminded: bool
+    remind_count: int
+    last_remind_at: str = ""
+    last_remind_reason: str = ""

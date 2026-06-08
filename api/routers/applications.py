@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
-from api.models import ApplicationCreate, SupplementRequest, WithdrawRequest, ResubmitRequest
+from api.models import ApplicationCreate, SupplementRequest, WithdrawRequest, ResubmitRequest, RemindRequest
 from api.services import application_service
+from api.services import reminder_service
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
 
@@ -63,3 +64,16 @@ async def withdraw_application(app_id: str, body: WithdrawRequest):
     if result == "not_withdrawable":
         raise HTTPException(status_code=400, detail="只能撤回待审批状态的申请")
     return {"ok": True}
+
+
+@router.put("/{app_id}/remind")
+async def remind_application(app_id: str, body: RemindRequest):
+    result = await reminder_service.create_reminder(app_id, body.operator_id, reason=body.reason)
+    if result == "not_found":
+        raise HTTPException(status_code=404, detail="申请不存在")
+    if result == "not_remindable":
+        raise HTTPException(status_code=400, detail="只能对待审批或已重新提交状态的申请发起催办")
+    if isinstance(result, str) and result.startswith("cooldown:"):
+        remaining = result.split(":")[1]
+        raise HTTPException(status_code=429, detail=f"操作过于频繁，请等待{remaining}秒后再试")
+    return {"id": result}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Check, X, Ban, Clock, Zap } from 'lucide-react'
+import { ArrowLeft, Check, X, Ban, Clock, Zap, Bell } from 'lucide-react'
 import { getApplication, approveApplication, rejectApplication } from '@/api'
 import { useAuthStore } from '@/store'
 import DynamicForm from '@/components/DynamicForm'
@@ -15,6 +15,7 @@ const actionLabelMap: Record<string, string> = {
   supplement: '补充说明',
   resubmit: '重新提交',
   withdraw: '撤回申请',
+  remind: '催办',
 }
 
 const actionColorMap: Record<string, string> = {
@@ -24,6 +25,7 @@ const actionColorMap: Record<string, string> = {
   supplement: 'bg-amber-500',
   resubmit: 'bg-indigo-500',
   withdraw: 'bg-gray-500',
+  remind: 'bg-orange-500',
 }
 
 function ProcessTimeline({ logs }: { logs: ProcessLog[] }) {
@@ -143,6 +145,21 @@ export default function ApprovalDetail() {
             <span className="font-semibold text-red-800">加急申请</span>
             {app.urgent_reason && (
               <p className="text-red-700 mt-1">加急原因：{app.urgent_reason}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {app.reminder_info?.reminded && (
+        <div className="mb-4 p-3 rounded-lg border-2 flex items-start gap-2 bg-orange-50 border-orange-300">
+          <Bell size={16} className="shrink-0 mt-0.5 text-orange-600" />
+          <div className="text-sm">
+            <span className="font-semibold text-orange-800">已被催办 {app.reminder_info.remind_count} 次</span>
+            {app.reminder_info.last_remind_at && (
+              <p className="text-orange-700 mt-1">最后催办时间：{new Date(app.reminder_info.last_remind_at).toLocaleString('zh-CN')}</p>
+            )}
+            {app.reminder_info.last_remind_reason && (
+              <p className="text-orange-700">最后催办说明：{app.reminder_info.last_remind_reason}</p>
             )}
           </div>
         </div>

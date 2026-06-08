@@ -129,3 +129,10 @@ export async function exportApplications(filters?: Record<string, string>) {
   if (!res.ok) throw new Error('导出失败')
   return res.blob()
 }
+
+export async function remindApplication(id: string, operatorId: string, reason: string = '') {
+  return request<{ id: string }>(`/applications/${id}/remind`, {
+    method: 'PUT',
+    body: JSON.stringify({ operator_id: operatorId, reason }),
+  })
+}

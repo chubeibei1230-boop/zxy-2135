@@ -67,6 +67,7 @@ export interface Application {
   updated_at: string
   process_logs?: ProcessLog[]
   latest_action?: LatestAction
+  reminder_info?: ReminderInfo
 }
 
 export interface SupplementNote {
@@ -74,6 +75,13 @@ export interface SupplementNote {
   application_id: string
   content: string
   created_at: string
+}
+
+export interface ReminderInfo {
+  reminded: boolean
+  remind_count: number
+  last_remind_at: string
+  last_remind_reason: string
 }
 
 export interface UserInfo {

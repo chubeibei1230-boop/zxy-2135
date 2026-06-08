@@ -1,6 +1,7 @@
 import json
 from uuid import uuid4
 from api.database import get_db
+from api.services import reminder_service
 
 
 async def _add_log(application_id, action, operator_id, operator_name, remark=""):
@@ -122,6 +123,7 @@ async def get_applications(applicant_id=None, status=None, is_urgent=None):
     for row in rows:
         snapshot = await _get_field_snapshot(row["application_type_id"], row["field_version"])
         latest = await _get_latest_status_action(row["id"])
+        remind_info = await reminder_service.get_reminder_info(row["id"])
         result.append({
             "id": row["id"],
             "application_type_id": row["application_type_id"],
@@ -138,6 +140,7 @@ async def get_applications(applicant_id=None, status=None, is_urgent=None):
             "created_at": row["created_at"],
             "updated_at": row["updated_at"],
             "latest_action": latest,
+            "reminder_info": remind_info,
         })
     return result
 
@@ -160,6 +163,7 @@ async def get_application(app_id):
     notes = await _get_supplement_notes(app_id)
     logs = await _get_process_logs(app_id)
     latest = await _get_latest_status_action(app_id)
+    remind_info = await reminder_service.get_reminder_info(app_id)
     return {
         "id": row["id"],
         "application_type_id": row["application_type_id"],
@@ -178,6 +182,7 @@ async def get_application(app_id):
         "supplement_notes": notes,
         "process_logs": logs,
         "latest_action": latest,
+        "reminder_info": remind_info,
     }
 
 

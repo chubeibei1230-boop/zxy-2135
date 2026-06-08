@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, AlertTriangle, Undo2, Clock, Zap } from 'lucide-react'
-import { getApplication, supplementApplication, resubmitApplication, withdrawApplication } from '@/api'
+import { ArrowLeft, AlertTriangle, Undo2, Clock, Zap, Bell } from 'lucide-react'
+import { getApplication, supplementApplication, resubmitApplication, withdrawApplication, remindApplication } from '@/api'
 import { useAuthStore } from '@/store'
 import DynamicForm from '@/components/DynamicForm'
 import StatusBadge from '@/components/StatusBadge'
@@ -15,6 +15,7 @@ const actionLabelMap: Record<string, string> = {
   supplement: '补充说明',
   resubmit: '重新提交',
   withdraw: '撤回申请',
+  remind: '催办',
 }
 
 const actionColorMap: Record<string, string> = {
@@ -24,6 +25,7 @@ const actionColorMap: Record<string, string> = {
   supplement: 'bg-amber-500',
   resubmit: 'bg-indigo-500',
   withdraw: 'bg-gray-500',
+  remind: 'bg-orange-500',
 }
 
 function ProcessTimeline({ logs }: { logs: ProcessLog[] }) {
@@ -66,6 +68,8 @@ export default function ApplicationDetail() {
   const [resubmitUrgent, setResubmitUrgent] = useState(false)
   const [resubmitUrgentReason, setResubmitUrgentReason] = useState('')
   const [showResubmit, setShowResubmit] = useState(false)
+  const [showRemind, setShowRemind] = useState(false)
+  const [remindReason, setRemindReason] = useState('')
   const user = useAuthStore((s) => s.user)
   const { toasts, showToast, dismissToast } = useToast()
 
@@ -131,12 +135,29 @@ export default function ApplicationDetail() {
     }
   }
 
+  async function handleRemind() {
+    if (!user || !app) return
+    setSubmitting(true)
+    try {
+      await remindApplication(id!, user.id, remindReason.trim())
+      setShowRemind(false)
+      setRemindReason('')
+      showToast('催办已发送', 'success')
+      loadApp()
+    } catch (err: any) {
+      showToast(err.message || '催办操作失败')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   if (loading) return <div className="text-center py-12 text-gray-500">加载中...</div>
   if (!app) return <div className="text-center py-12 text-gray-500">申请不存在</div>
 
   const canWithdraw = (app.status === 'pending' || app.status === 'resubmitted') && user?.id === app.applicant_id
   const canResubmit = app.status === 'rejected'
   const canSupplement = app.status === 'pending' || app.status === 'resubmitted'
+  const canRemind = (app.status === 'pending' || app.status === 'resubmitted') && user?.id === app.applicant_id
 
   return (
     <div>
@@ -162,6 +183,21 @@ export default function ApplicationDetail() {
             <span className="font-semibold text-red-800">加急申请</span>
             {app.urgent_reason && (
               <p className="text-red-700 mt-1">加急原因：{app.urgent_reason}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {app.reminder_info?.reminded && (
+        <div className="mb-4 p-3 rounded-lg border-2 flex items-start gap-2 bg-orange-50 border-orange-300">
+          <Bell size={16} className="shrink-0 mt-0.5 text-orange-600" />
+          <div className="text-sm">
+            <span className="font-semibold text-orange-800">已催办 {app.reminder_info.remind_count} 次</span>
+            {app.reminder_info.last_remind_at && (
+              <p className="text-orange-700 mt-1">最后催办时间：{new Date(app.reminder_info.last_remind_at).toLocaleString('zh-CN')}</p>
+            )}
+            {app.reminder_info.last_remind_reason && (
+              <p className="text-orange-700">最后催办说明：{app.reminder_info.last_remind_reason}</p>
             )}
           </div>
         </div>
@@ -247,6 +283,39 @@ export default function ApplicationDetail() {
       </div>
 
       <div className="flex gap-2">
+        {canRemind && !showRemind && (
+          <button
+            onClick={() => setShowRemind(true)}
+            disabled={submitting}
+            className="flex items-center gap-1 px-5 py-2 rounded text-sm font-semibold text-white disabled:opacity-50 bg-orange-500 hover:bg-orange-600"
+          >
+            <Bell size={14} /> 催办
+          </button>
+        )}
+        {canRemind && showRemind && (
+          <div className="p-4 border-2 rounded-lg space-y-3 w-full" style={{ borderColor: 'var(--color-border)' }}>
+            <div>
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-primary)' }}>催办说明</label>
+              <textarea
+                value={remindReason}
+                onChange={(e) => setRemindReason(e.target.value)}
+                rows={2}
+                className="w-full px-3 py-2 border rounded text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-y"
+                style={{ borderColor: 'var(--color-border)' }}
+                placeholder="请简短说明催办原因..."
+              />
+            </div>
+            <div className="text-xs text-gray-400">同一申请5分钟内不可重复催办</div>
+            <div className="flex gap-2">
+              <button onClick={handleRemind} disabled={submitting} className="px-4 py-1.5 rounded text-sm font-semibold text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-50">
+                确认催办
+              </button>
+              <button type="button" onClick={() => { setShowRemind(false); setRemindReason('') }} className="px-4 py-1.5 rounded text-sm border" style={{ borderColor: 'var(--color-border)' }}>
+                取消
+              </button>
+            </div>
+          </div>
+        )}
         {canResubmit && !showResubmit && (
           <button
             onClick={() => {

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getApprovals } from '@/api'
 import StatusBadge from '@/components/StatusBadge'
-import { Zap } from 'lucide-react'
+import { Zap, Bell } from 'lucide-react'
 import type { Application, ApplicationStatus } from '@/types'
 
 const tabs: { label: string; value: string }[] = [
@@ -21,6 +21,7 @@ const actionLabelMap: Record<string, string> = {
   supplement: '补充说明',
   resubmit: '重新提交',
   withdraw: '撤回',
+  remind: '催办',
 }
 
 export default function ApprovalList() {
@@ -101,6 +102,7 @@ export default function ApprovalList() {
               <th className="text-left py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>申请类型</th>
               <th className="text-center py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>状态</th>
               <th className="text-center py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>加急</th>
+              <th className="text-center py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>催办</th>
               <th className="text-left py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>最近操作</th>
               <th className="text-left py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>提交时间</th>
               <th className="text-right py-2 font-semibold" style={{ color: 'var(--color-primary)' }}>操作</th>
@@ -119,6 +121,13 @@ export default function ApprovalList() {
                     </span>
                   ) : <span className="text-gray-300">-</span>}
                 </td>
+                <td className="py-2.5 text-center">
+                  {app.reminder_info?.reminded ? (
+                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">
+                      <Bell size={10} /> {app.reminder_info.remind_count}次
+                    </span>
+                  ) : <span className="text-gray-300">-</span>}
+                </td>
                 <td className="py-2.5 text-gray-500 text-xs">
                   {app.latest_action ? (
                     <span>{actionLabelMap[app.latest_action.action] || app.latest_action.action} · {app.latest_action.operator_name}</span>
@@ -133,7 +142,7 @@ export default function ApprovalList() {
               </tr>
             ))}
             {applications.length === 0 && (
-              <tr><td colSpan={7} className="text-center py-8 text-gray-400">暂无审批记录</td></tr>
+              <tr><td colSpan={8} className="text-center py-8 text-gray-400">暂无审批记录</td></tr>
             )}
           </tbody>
         </table>

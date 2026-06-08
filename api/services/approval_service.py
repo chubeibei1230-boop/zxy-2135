@@ -1,6 +1,7 @@
 import json
 from uuid import uuid4
 from api.database import get_db
+from api.services import reminder_service
 
 
 async def _build_status_filter(query, status_param, params):
@@ -43,6 +44,7 @@ async def get_approvals(status=None, is_urgent=None):
         fc_row = await cursor2.fetchone()
         snapshot = json.loads(fc_row["fields_json"]) if fc_row else []
         latest = await _get_latest_status_action(row["id"])
+        remind_info = await reminder_service.get_reminder_info(row["id"])
         result.append({
             "id": row["id"],
             "application_type_id": row["application_type_id"],
@@ -59,6 +61,7 @@ async def get_approvals(status=None, is_urgent=None):
             "created_at": row["created_at"],
             "updated_at": row["updated_at"],
             "latest_action": latest,
+            "reminder_info": remind_info,
         })
     return result
 

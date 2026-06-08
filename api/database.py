@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS approval_logs (
     id TEXT PRIMARY KEY,
     application_id TEXT NOT NULL,
     supervisor_id TEXT NOT NULL,
-    action TEXT NOT NULL CHECK(action IN ('approve', 'reject', 'withdraw', 'supplement', 'resubmit', 'submit')),
+    action TEXT NOT NULL CHECK(action IN ('approve', 'reject', 'withdraw', 'supplement', 'resubmit', 'submit', 'remind')),
     reason TEXT DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (application_id) REFERENCES applications(id),
@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS approval_logs (
 CREATE TABLE IF NOT EXISTS application_logs (
     id TEXT PRIMARY KEY,
     application_id TEXT NOT NULL,
-    action TEXT NOT NULL CHECK(action IN ('submit', 'approve', 'reject', 'supplement', 'resubmit', 'withdraw')),
+    action TEXT NOT NULL CHECK(action IN ('submit', 'approve', 'reject', 'supplement', 'resubmit', 'withdraw', 'remind')),
     operator_id TEXT NOT NULL,
     operator_name TEXT NOT NULL DEFAULT '',
     remark TEXT DEFAULT '',
@@ -106,6 +106,19 @@ CREATE INDEX IF NOT EXISTS idx_field_configs_type_version ON field_configs(appli
 CREATE INDEX IF NOT EXISTS idx_supplement_notes_application ON supplement_notes(application_id);
 CREATE INDEX IF NOT EXISTS idx_approval_logs_application ON approval_logs(application_id);
 CREATE INDEX IF NOT EXISTS idx_application_logs_application ON application_logs(application_id);
+
+CREATE TABLE IF NOT EXISTS reminders (
+    id TEXT PRIMARY KEY,
+    application_id TEXT NOT NULL,
+    operator_id TEXT NOT NULL,
+    operator_name TEXT NOT NULL DEFAULT '',
+    reason TEXT DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (application_id) REFERENCES applications(id),
+    FOREIGN KEY (operator_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_reminders_application ON reminders(application_id);
 """)
     cursor = await db.execute("SELECT COUNT(*) FROM users")
     row = await cursor.fetchone()

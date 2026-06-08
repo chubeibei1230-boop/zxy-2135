@@ -2,6 +2,7 @@ import json
 import csv
 import io
 from api.database import get_db
+from api.services import reminder_service
 
 
 async def _get_latest_status_action(app_id):
@@ -72,6 +73,7 @@ async def export_csv(application_type_id=None, status=None, start_date=None, end
                 all_field_names_ordered.append(f["name"])
 
         latest = await _get_latest_status_action(row["id"])
+        remind_info = await reminder_service.get_reminder_info(row["id"])
 
         rows_data.append({
             "id": row["id"],
@@ -84,10 +86,11 @@ async def export_csv(application_type_id=None, status=None, start_date=None, end
             "snapshot": snapshot,
             "field_values": field_values,
             "latest_action": latest,
+            "reminder_info": remind_info,
         })
 
     output = io.StringIO()
-    base_headers = ["申请编号", "申请人", "申请类型", "状态", "是否加急", "加急原因", "创建时间", "最近操作", "最近操作人", "最近操作说明"]
+    base_headers = ["申请编号", "申请人", "申请类型", "状态", "是否加急", "加急原因", "是否被催办", "催办次数", "最后催办时间", "最后催办说明", "创建时间", "最近操作", "最近操作人", "最近操作说明"]
     headers = base_headers + all_field_names_ordered
     writer = csv.DictWriter(output, fieldnames=headers)
     writer.writeheader()
@@ -107,10 +110,12 @@ async def export_csv(application_type_id=None, status=None, start_date=None, end
         "supplement": "补充说明",
         "resubmit": "重新提交",
         "withdraw": "撤回",
+        "remind": "催办",
     }
 
     for rd in rows_data:
         latest = rd["latest_action"]
+        ri = rd["reminder_info"]
         record = {
             "申请编号": rd["id"],
             "申请人": rd["applicant_name"],
@@ -118,6 +123,10 @@ async def export_csv(application_type_id=None, status=None, start_date=None, end
             "状态": status_map.get(rd["status"], rd["status"]),
             "是否加急": "是" if rd["urgent"] else "否",
             "加急原因": rd["urgent_reason"],
+            "是否被催办": "是" if ri["reminded"] else "否",
+            "催办次数": str(ri["remind_count"]),
+            "最后催办时间": ri["last_remind_at"],
+            "最后催办说明": ri["last_remind_reason"],
             "创建时间": rd["created_at"],
             "最近操作": action_map.get(latest["action"], latest["action"]) if latest else "",
             "最近操作人": latest["operator_name"] if latest else "",
